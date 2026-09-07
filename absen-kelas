@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Absensi Kelas</title>
+    <!-- Menggunakan Tailwind CSS untuk tampilan modern -->
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen font-sans">
+
+    <!-- Header -->
+    <div class="bg-blue-600 text-white py-6 shadow-md">
+        <h1 class="text-3xl font-bold text-center">Web Absensi Kelas</h1>
+        <p class="text-center text-blue-100 mt-1">Sistem Absensi Mandiri Menggunakan NISN</p>
+    </div>
+
+    <div class="max-w-4xl mx-auto p-4 md:p-6 grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+        
+        <!-- Form Absen (Sisi Kiri) -->
+        <div class="bg-white p-6 rounded-lg shadow-md md:col-span-1">
+            <h2 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2">Form Absensi</h2>
+            
+            <form id="absenForm" onsubmit="prosesAbsen(event)">
+                <div class="mb-4">
+                    <label for="nisn" class="block text-sm font-medium text-gray-700 mb-1">NISN Siswa</label>
+                    <input type="number" id="nisn" placeholder="Masukkan NISN" required 
+                        class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+
+                <div class="mb-6">
+                    <label for="keterangan" class="block text-sm font-medium text-gray-700 mb-1">Keterangan</label>
+                    <select id="keterangan" class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="Hadir">Hadir</option>
+                        <option value="Izin">Izin</option>
+                        <option value="Sakit">Sakit</option>
+                    </select>
+                </div>
+
+                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md transition duration-200">
+                    Kirim Absen
+                </button>
+            </form>
+
+            <!-- Pesan Notifikasi -->
+            <div id="alertBox" class="hidden mt-4 p-3 rounded-md text-sm text-center"></div>
+        </div>
+
+        <!-- Tabel Rekapitulasi (Sisi Kanan) -->
+        <div class="bg-white p-6 rounded-lg shadow-md md:col-span-2">
+            <div class="flex justify-between items-center mb-4 border-b pb-2">
+                <h2 class="text-xl font-bold text-gray-800">Daftar Kehadiran Hari Ini</h2>
+                <button onclick="clearData()" class="text-xs bg-red-100 hover:bg-red-200 text-red-600 px-2 py-1 rounded border border-red-300">
+                    Reset Data
+                </button>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-gray-50 border-b text-sm font-semibold text-gray-600">
+                            <th class="p-3">Waktu</th>
+                            <th class="p-3">NISN</th>
+                            <th class="p-3">Nama Siswa</th>
+                            <th class="p-3">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabelAbsen" class="text-sm divide-y divide-gray-200">
+                        <!-- Data absen akan muncul di sini -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Data Database Siswa Sederhana (NISN & Nama)
+         // Data Database Siswa Sederhana (NISN & Nama)
+        const dataSiswa = {
+            "0012345678": "Ahmad Fauzi",
+            "0087654321": "Siti Nurhaliza",
+            "0011223344": "Budi Santoso",
+            "0055667788": "Dewi Lestari",
+            "0099887766": "Eko Prasetyo",
+            "0102784885": "Repa Setiana",
+            "0093388734": "Ayu Raya"
+            
+        };
+    // Data Database Siswa Sederhana (NISN & Nama)
+    
+
+        // Mengambil data dari LocalStorage saat halaman dimuat
+        document.addEventListener('DOMContentLoaded', tampilkanAbsen);
+
+        function prosesAbsen(event) {
+            event.preventDefault();
+
+            const nisnInput = document.getElementById('nisn').value.trim();
+            const keteranganInput = document.getElementById('keterangan').value;
+            const alertBox = document.getElementById('alertBox');
+
+            // 1. Cek apakah NISN terdaftar di "Database"
+            if (!dataSiswa[nisnInput]) {
+                showAlert("NISN Tidak Ditemukan!", "bg-red-100 text-red-700");
+                return;
+            }
+
+            const namaSiswa = dataSiswa[nisnInput];
+            
+            // Ambil data absensi yang sudah ada di localStorage
+            let daftarAbsen = JSON.parse(localStorage.getItem('absensiKelas')) || [];
+
+            // 2. Cek apakah siswa sudah absen hari ini
+            const tanggalHariIni = new Date().toLocaleDateString('id-ID');
+            const sudahAbsen = daftarAbsen.some(item => item.nisn === nisnInput && item.tanggal === tanggalHariIni);
+
+            if (sudahAbsen) {
+                showAlert(`Siswa ${namaSiswa} sudah melakukan absen hari ini!`, "bg-yellow-100 text-yellow-800");
+                return;
+            }
+
+            // 3. Simpan data absen baru
+            const waktuSekarang = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+            
+            const dataBaru = {
+                nisn: nisnInput,
+                nama: namaSiswa,
+                keterangan: keteranganInput,
+                waktu: waktuSekarang,
+                tanggal: tanggalHariIni
+            };
+
+            daftarAbsen.unshift(dataBaru); // Tambahkan ke paling atas
+            localStorage.setItem('absensiKelas', JSON.stringify(daftarAbsen));
+
+            // Reset Form & Tampilkan Notifikasi Sukses
+            document.getElementById('absenForm').reset();
+            showAlert(`Berhasil! ${namaSiswa} dicatat: ${keteranganInput}`, "bg-green-100 text-green-700");
+            
+            // Refresh Tabel
+            tampilkanAbsen();
+        }
+
+        function tampilkanAbsen() {
+            const tabel = document.getElementById('tabelAbsen');
+            const daftarAbsen = JSON.parse(localStorage.getItem('absensiKelas')) || [];
+            
+            tabel.innerHTML = '';
+
+            if (daftarAbsen.length === 0) {
+                tabel.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-gray-500">Belum ada data absensi.</td></tr>`;
+                return;
+            }
+
+            daftarAbsen.forEach(item => {
+                let badgeColor = "bg-green-100 text-green-800"; // Default Hadir
+                if (item.keterangan === 'Izin') badgeColor = "bg-blue-100 text-blue-800";
+                if (item.keterangan === 'Sakit') badgeColor = "bg-red-100 text-red-800";
+
+                const row = `
+                    <tr class="hover:bg-gray-50">
+                        <td class="p-3 text-gray-500">${item.waktu}</td>
+                        <td class="p-3 font-mono text-gray-700">${item.nisn}</td>
+                        <td class="p-3 font-medium text-gray-800">${item.nama}</td>
+                        <td class="p-3">
+                            <span class="px-2 py-1 rounded-full text-xs font-semibold ${badgeColor}">
+                                ${item.keterangan}
+                            </span>
+                        </td>
+                    </tr>
+                `;
+                tabel.innerHTML += row;
+            });
+        }
+
+        function showAlert(pesan, warna) {
+            const alertBox = document.getElementById('alertBox');
+            alertBox.className = `mt-4 p-3 rounded-md text-sm text-center ${warna}`;
+            alertBox.innerText = pesan;
+            alertBox.classList.remove('hidden');
+
+            setTimeout(() => {
+                alertBox.classList.add('hidden');
+            }, 3000);
+        }
+
+        function clearData() {
+            if (confirm("Apakah Anda yakin ingin menghapus seluruh riwayat absen?")) {
+                localStorage.removeItem('absensiKelas');
+                tampilkanAbsen();
+            }
+        }
+    </script>
+</body>
+</html>
